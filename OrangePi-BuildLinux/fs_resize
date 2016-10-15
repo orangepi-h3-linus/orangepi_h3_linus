@@ -1,0 +1,175 @@
+#!/bin/bash
+
+# ******************************************
+# Resize Linux ext4 partition to fill sdcard
+# ******************************************
+
+if [ "$(id -u)" != "0" ]; then
+	echo "Script must be run as root !"
+	exit 0
+fi
+
+_REL=`lsb_release -sc`
+
+_rootpart=`mount | grep "on / " | awk '{print $1}'`
+if [ "${_rootpart}" = "/dev/mmcblk0p2" ]; then
+        rootdrv="mmcblk0p2"
+        sdcard="/dev/mmcblk0"
+elif [ "${_rootpart}" = "/dev/mmcblk1p2" ]; then
+        rootdrv="mmcblk1p2"
+        sdcard="/dev/mmcblk1"
+else
+        echo "Root fs mount partition not found!"
+        exit 1
+fi
+echo ""
+
+fdisk -l $sdcard | grep $sdcard
+echo ""
+
+_btrfs=`mount | grep -o btrfs`
+
+sdcard_part=`fdisk -l $sdcard | grep $rootdrv | awk '{print $1}'`
+sdcard_sect=`fdisk -l $sdcard | grep "Disk $sdcard" | awk '{print $7}'`
+if [ "${sdcard_sect}" = "" ]; then
+    sdcard_sect=`fdisk -l $sdcard | grep total | awk '{print $8}'`
+fi
+sdcard_end=$(expr $sdcard_sect - 1024)
+
+part_start=`fdisk -l $sdcard | grep $rootdrv | awk '{print $2}'`
+part_end=`fdisk -l $sdcard | grep $rootdrv | awk '{print $3}'`
+
+echo "  Max block: $sdcard_end"
+echo "   Part end: $part_end"
+echo " Part start: $part_start"
+if [ ! "${_btrfs}" = "" ]; then
+    echo " btrfs part: yes"
+    _resize="btrfs filesystem resize max /"
+else
+    _resize="resize2fs ${sdcard_part}"
+fi
+echo ""
+if [ $part_end -ge $sdcard_end ]; then
+    echo "Partition allready maximum size !"
+    rm /usr/local/bin/fs_resize_warning > /dev/null 2>&1
+    exit 0
+fi
+
+echo -n "WARNING: Do you want to resize \"$sdcard_part\" (y/N)?  "
+read -n 1 ANSWER
+if [ ! "${ANSWER}" = "y" ] ; then
+    echo ""
+    echo "Canceled.."
+    exit 0
+fi
+echo ""
+
+# RESIZE PARTITION
+
+echo -e "p\nd\n2\nn\np\n2\n$part_start\n$sdcard_end\nw" | fdisk ${sdcard} > /dev/null 2>&1
+#if [ $? -ne 0 ]; then
+#	echo "ERROR resizing partition!"
+#	exit 1
+#fi
+
+echo "PARTITION RESIZED."
+
+cat > /tmp/rc.local << _EOF_
+#!/bin/sh -e
+#
+# rc.local
+#
+# This script is executed at the end of each multiuser runlevel.
+# Make sure that the script will "exit 0" on success or any other
+# value on error.
+#
+# In order to enable or disable this script just change the execution
+# bits.
+#
+# By default this script does nothing.
+
+echo 0 > /proc/sys/kernel/hung_task_timeout_secs
+
+dmesg -n 1
+
+_EOF_
+
+
+cat > /usr/local/bin/resize_fs << _EOF_
+#!/bin/bash
+$_resize
+if [ \$? -eq 0 ]; then
+    rm /usr/local/bin/fs_resize_warning
+    rm /usr/local/bin/resize_fs
+    sleep 2
+    if [ -d /etc/local.d ]; then
+        rm /etc/local.d/opi.start
+        mv /etc/local.d/opi.start.orig /etc/local.d/opi.start
+    elif [ -d /etc/rc.d ]; then
+        if [ -f /etc/rc.d/after.local ]; then
+            rm /etc/rc.d/after.local
+            mv /etc/rc.d/after.local.orig /etc/rc.d/after.local
+        else
+            rm /etc/rc.d/rc.local
+            mv /etc/rc.d/rc.local.orig /etc/rc.d/rc.local
+        fi
+    else
+        rm /etc/rc.local
+        mv /etc/rc.local.orig /etc/rc.local
+    fi
+fi
+_EOF_
+
+chmod +x /usr/local/bin/resize_fs > /dev/null 2>&1
+
+
+if [ -d /etc/local.d ]; then
+    if [ ! -f /etc/local.d/opi.start ]; then
+        cp /tmp/rc.local /etc/local.d/opi.start.orig
+        echo "exit 0" >> /etc/local.d/opi.start.orig
+        chmod +x /etc/local.d/opi.start.orig > /dev/null 2>&1
+    fi
+    echo "/usr/local/bin/resize_fs &&" >> /tmp/rc.local
+    echo "exit 0" >> /tmp/rc.local
+    mv /tmp/rc.local /etc/local.d/opi.start
+    chmod +x /etc/local.d/opi.start > /dev/null 2>&1
+
+elif [ -d /etc/rc.d ]; then
+    if [ -f /etc/rc.d/after.local ]; then
+        mv /etc/rc.d/after.local /etc/rc.d/after.local.orig
+        echo "/usr/local/bin/resize_fs &&" >> /tmp/rc.local
+        echo "exit 0" >> /tmp/rc.local
+        mv /tmp/rc.local /etc/rc.d/after.local
+        chmod +x /etc/rc.d/after.local > /dev/null 2>&1
+    else
+        if [ -f /etc/rc.d/rc.local ]; then
+            mv /etc/rc.d/rc.local /etc/rc.d/rc.local.orig
+        else
+            cp /tmp/rc.local /etc/rc.d/rc.local.orig
+            echo "exit 0" >> /etc/rc.d/rc.local.orig
+            chmod +x /etc/rc.d/rc.local.orig > /dev/null 2>&1
+        fi
+        echo "/usr/local/bin/resize_fs &&" >> /tmp/rc.local
+        echo "exit 0" >> /tmp/rc.local
+        mv /tmp/rc.local /etc/rc.d/rc.local
+        chmod +x /etc/rc.d/rc.local > /dev/null 2>&1
+    fi
+else
+    if [ -f /etc/rc.local ]; then
+        mv /etc/rc.local /etc/rc.local.orig
+    else
+        cp /tmp/rc.local /etc/rc.local.orig
+        echo "exit 0" >> /etc/rc.local.orig
+        chmod +x /etc/rc.local.orig > /dev/null 2>&1
+    fi
+    echo "/usr/local/bin/resize_fs &&" >> /tmp/rc.local
+    echo "exit 0" >> /tmp/rc.local
+    mv /tmp/rc.local /etc/rc.local
+    chmod +x /etc/rc.local > /dev/null 2>&1
+fi
+
+REBOOT=1
+echo "*********************************************"
+echo "Rootfs Extended. Please REBOOT to take effect"
+echo "*********************************************"
+echo ""

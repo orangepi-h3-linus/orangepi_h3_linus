@@ -1,0 +1,31 @@
+#!/bin/bash
+ 
+echo ""
+date
+echo "***************"
+echo "Installing ibus"
+echo "***************"
+echo ""
+
+
+if [ ! -f "install.log" ]; then
+	 touch install.log
+fi
+
+_auto="-y -q"
+echo "Perpare Installing ....."
+sudo apt-get $_auto install ibus ibus-clutter ibus-gtk ibus-gtk3 ibus-qt4 im-switch > $logfile
+sudo apt-get $_auto install ibus-googlepinyin >> $logfile
+
+echo ""
+echo "****************************"
+echo "please configure typewriting"
+echo "****************************"
+sudo ibus-setup
+
+
+
+
+
+
+

@@ -1,0 +1,27 @@
+#!/bin/bash
+
+if [ "$(id -u)" != "0"  ]; then
+    echo "Script must be run as root !"
+    exit 0
+fi
+
+echo ""
+date
+echo "*******************"
+echo "Installing xrdp"
+echo "*******************"
+echo ""
+
+if [ ! -f "install.log"  ]; then
+    touch install.log
+fi
+
+logfile="install.log"
+_auto="-y -q"
+echo "Perpare Installing....."
+sudo apt-get $_auto install xrdp > $logfile
+sudo apt-get clean
+
+echo ""
+echo "xrdp install OK."
+

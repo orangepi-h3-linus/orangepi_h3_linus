@@ -1,0 +1,42 @@
+#!/bin/bash
+
+
+echo "Please download BitTorrent-Sync_arm.tar.gz"
+echo ""
+echo "https://www.getsync.com/platforms/desktop"
+echo "PLease choose ARM Free download "
+
+
+if [ ! -f /home/orangepi/BitTorrent-Sync_arm.tar.gz  ]; then
+    echo "Please download compression package into /home/orangepi"
+    echo ""
+    echo "if the package is wrong, please download right package"
+    exit 1
+fi
+
+echo "**********************"
+echo "Installing Btsync ....."
+echo "**********************"
+echo ""
+
+sudo tar -xzvf BitTorrent-Sync_arm.tar.gz
+sudo chmod +x btsync  LICENSE.TXT  README
+echo ""
+cd /lib/
+sudo ln -s ld-linux-armhf.so.3 ld-linux.so.3    
+cd /home/orangepi
+sudo ./btsync --webui.listen 0.0.0.0:8888
+
+echo ""
+echo "Install OK ....."
+echo ""
+echo "**********************"
+echo "Open your computer browser,input your orangepi IP"
+echo "example: http://192.168.***.***/gui/"
+echo "You can create a username and password to use....."
+echo "**********************"
+echo ""
+
+
+
+

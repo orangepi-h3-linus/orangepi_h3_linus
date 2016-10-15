@@ -1,0 +1,33 @@
+#!/bin/bash
+
+echo ""
+date
+echo "************************"
+echo "Installing BaiDuYun bypy"
+echo "************************"
+echo ""
+
+if [ ! -f "install.log"  ]; then
+    touch install.log
+fi
+
+logfile="install.log"
+_auto="-y -q"
+
+echo "Perpare Installing ....."
+sudo apt-get $_auto install python-pip >> $logfile
+sudo apt-get clean
+sudo pip install requests
+sudo pip install bypy
+
+echo "************************************************"
+echo "Please enter the following URL into your browser,you will get Authorization code....."
+echo "Enter the Authorization code into terminal within 10 minutes....."
+echo "************************************************"
+echo ""
+echo ""
+bypy.py info
+
+echo "please choose your file upload to BaiDuYun ....."
+echo ""
+

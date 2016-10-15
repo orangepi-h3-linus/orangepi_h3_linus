@@ -1,0 +1,52 @@
+#!/bin/bash
+
+echo ""
+date
+echo "**********************"
+echo "Installing samba"
+echo "**********************"
+echo ""
+
+if [ ! -f "install.log" ]; then
+    touch install.log
+fi
+
+logfile="install.log"
+_auto="-y -q"
+
+echo "Perpare Installing ....."
+sudo apt-get $_auto install samba >> $logfile
+sudo apt-get clean
+
+echo ""
+echo "Flash install OK ....."
+echo "samba configure ....."
+
+if [ -f /etc/samba/smb.conf  ]; then
+    sed -i '/workgroup = WORKGROUP/cworkgroup = WORKGROUP\nsecurity = user\nusername map = /etc/samba/smbusers\n' /etc/samba/smb.conf
+fi
+
+cat >> /etc/samba/smb.conf << _EOF_
+[share]
+path = /home/orangepi
+public = yes
+writable = yes
+valid users = orangepi
+create mask = 0644
+directory mask = 0777
+force user = orangepi
+force group = orangepi
+available = yes
+browseable = yes
+
+_EOF_
+
+echo "please input password ....."
+sudo smbpasswd -a orangepi
+if [ ! -f /etc/samba/smbusers ]; then
+    touch /etc/samba/smbusers
+fi
+echo "orangepi= "network username"" >> /etc/samba/smbusers
+sudo /etc/init.d/samba restart
+
+

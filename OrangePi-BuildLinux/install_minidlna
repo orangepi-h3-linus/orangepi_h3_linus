@@ -1,0 +1,55 @@
+#!/bin/bash
+
+echo ""
+date
+echo "**********************"
+echo "Installing minidlna"
+echo "**********************"
+echo ""
+
+if [ ! -f "install.log" ]; then
+    touch install.log
+fi
+
+logfile="install.log"
+_auto="-y -q"
+
+echo "Perpare Installing ....."
+sudo apt-get $_auto install minidlna > $logfile
+sudo apt-get clean
+
+echo ""
+echo "Flash install OK ....."
+echo "minidlna configure ....."
+
+if [ -f /etc/minidlna.conf  ]; then
+     sed -i '/media_dir=/cmedia_dir=A,/var/lib/minidlna/Music\nmedia_dir=V,/var/lib/minidlna/Video\nmedia_dir=P,/var/lib/minidlna/Picture\ndb_dir=/var/cache/minidlna/log\ndb_dir=/var/cache/minidlna/db\n' /etc/minidlna.conf
+fi
+
+sudo mkdir -p /var/lib/minidlna/Music
+sudo mkdir -p /var/lib/minidlna/Video
+sudo mkdir -p /var/lib/minidlna/Picture
+sudo mkdir -p /var/cache/minidlna/log
+sudo mkdir -p /var/cache/minidlna/db
+
+sudo chmod 777 /var/lib/minidlna/Music
+sudo chmod 777 /var/lib/minidlna/Video
+sudo chmod 777 /var/lib/minidlna/Picture
+sudo chmod 777 /var/cache/minidlna/log
+sudo chmod 777 /var/cache/minidlna/db
+
+sudo /etc/init.d/minidlna restart
+
+echo ""
+echo "**********************************************************************"
+echo "Then in your computer you can transmit somethings to floder with samba"
+echo "**********************************************************************"
+echo ""
+
+
+
+
+
+
+
+

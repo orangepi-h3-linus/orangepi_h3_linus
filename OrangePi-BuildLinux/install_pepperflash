@@ -1,0 +1,47 @@
+#!/bin/bash
+
+echo ""
+date
+echo "**********************"
+echo "Installing pepperflash"
+echo "**********************"
+echo ""
+
+if [ ! -f "install.log"  ]; then
+    touch install.log
+fi
+
+logfile="install.log"
+_auto="-y -q"
+
+cd ~
+echo "Downloading the package ..."
+sudo mkdir -p /home/orangepi/tmp/pepperflash
+sudo wget -O /home/orangepi/tmp/pepperflash/chromium-pepper-flash-12.0.0.77-1-armv7h.pkg.tar.xz http://os.archlinuxarm.org/armv7h/alarm/chromium-pepper-flash-12.0.0.77-1-armv7h.pkg.tar.xz
+if [ ! -f /home/orangepi/tmp/pepperflash/chromium-pepper-flash-12.0.0.77-1-armv7h.pkg.tar.xz ]; then
+    echo ""
+    echo "ERROR downloading the package from server, exiting."
+    sudo rm -rf /home/orangepi/tmp/pepperflash*
+    sudo rmdir /home/orangepi/tmp/pepperflash
+    exit 1
+fi
+
+echo "Unpacking ..."
+cd /home/orangepi/tmp/pepperflash
+sudo tar -xf chromium-pepper-flash-12.0.0.77-1-armv7h.pkg.tar.xz
+sudo chmod +x /home/orangepi/tmp/pepperflash/usr/lib/PepperFlash/*
+sudo cp /home/orangepi/tmp/pepperflash/usr/lib/PepperFlash/* /usr/lib/chromium-browser/plugins
+
+if [ -f /etc/chromium-browser/default ]; then
+    sed -i '/CHROMIUM_FLAGS=/cCHROMIUM_FLAGS="--ppapi-flash-path=/usr/lib/chromium-browser/plugins/libpepflashplayer.so --ppapi-flash-ersion=12.0.0.77 -password-store=detect -user-data-dir"' /etc/chromium-browser/default
+fi
+
+
+echo ""
+echo "Flash install OK."
+
+echo "*****************************"
+echo " Please REBOOT to take effect"
+echo "*****************************"
+
+

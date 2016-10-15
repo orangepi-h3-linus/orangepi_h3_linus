@@ -1,0 +1,153 @@
+#!/bin/bash
+
+if [ ! -f /home/orangepi/gpu_pack.zip  ]; then
+    echo "Compressed package does not exist,please download from the following address"
+    echo "https://pan.baidu.com/s/1mg1ZSqk"
+    exit 1
+fi
+if [ ! -d /usr/lib/arm-linux-gnueabihf/mesa-egl/  ]; then
+    echo "Please copy this directory"
+    exit 1
+fi
+echo ""
+date
+echo "***************************"
+echo "Configure environment......"
+echo "***************************"
+echo ""
+
+if [ ! -f "install.log"  ]; then
+    touch install.log
+ fi
+
+logfile="install.log"
+_auto="-y -q"
+path="/home/orangepi"
+module="/lib/modules/3.4.112/kernel/drivers/gpu"
+echo ""
+echo "Longer waiting time....."
+sudo apt-get $_auto install git build-essential make gcc autoconf libtool debhelper dh-autoreconf pkg-config automake xutils-dev libx11-dev libxext-dev libdrm-dev x11proto-dri2-dev libxfixes-dev xorg-dev libltdl-dev mesa-utils x11proto-core-dev unzip glmark2-es2 > $logfile
+sudo apt-get clean
+
+sudo unzip $path/gpu_pack.zip 
+cd $path/gpu_pack/LIB
+sudo cp -R * /usr/lib
+cd $path/gpu_pack/include
+sudo cp -R * /usr/include
+mkdir $path/hw_accleration
+cd $path/hw_accleration
+git clone https://github.com/robclark/libdri2.git 
+git clone https://github.com/linux-sunxi/libump.git 
+git clone https://github.com/ssvb/xf86-video-fbturbo.git 
+cd $path/hw_accleration/libdri2
+./autogen.sh
+./configure --prefix=/usr 
+make 
+sudo make install 
+sudo ldconfig
+cd $path/hw_accleration/libump
+autoreconf -i 
+sudo ./configure 
+make 
+sudo make install 
+sudo ldconfig
+cd $path/hw_accleration/xf86-video-fbturbo
+autoreconf -v -i 
+./configure --prefix=/usr 
+make 
+sudo make install 
+sudo ldconfig
+
+if [ ! -f /etc/X11/xorg.conf ]; then
+    sudo touch /etc/X11/xorg.conf
+fi
+cat >> /etc/X11/xorg.conf << _EOF_
+Section "Device"
+    Identifier      "Allwinner H3 FBDEV"
+    Driver          "fbturbo"
+    Option          "fbdev" "/dev/fb0"
+    Option          "DRI2"            "true"
+    Option          "SwapbuffersWait" "true"
+EndSection
+
+Section "DRI"
+    Mode 0666
+EndSection
+_EOF_
+
+if [ ! -f /etc/udev/rules.d/50-mail.rules  ]; then
+    touch /etc/udev/rules.d/50-mail.rules
+fi
+
+cat > /etc/udev/rules.d/50-mail.rules << _EOF_
+KERNEL=="mali", MODE="0660", GROUP="video"
+KERNEL=="ump", MODE="0660", GROUP="video"
+KERNEL=="disp", MODE="0660", GROUP="video"
+KERNEL=="g2d", MODE="0660", GROUP="video"
+KERNEL=="fb*", MODE="0660", GROUP="video"
+KERNEL=="cedar_dev", MODE="0660", GROUP="video"
+_EOF_
+
+sudo usermod -aG video $USER
+if [ ! -d /usr/lib/arm-linux-gnueabihf/mesa-egl ]; then
+	echo ""
+	echo "******************************************************"
+    echo "Please copy "mesa-egl" to /usr/lib/arm-linux-gnueabihf"
+	echo "******************************************************"
+	echo ""
+    exit 1
+fi
+sudo mv /usr/lib/arm-linux-gnueabihf/mesa-egl/ /usr/lib/arm-linux-gnueabihf/.mesa-egl/
+cd /etc/
+mkdir modules-load.d
+cd ./modules-load.d
+touch modules.conf
+cat > /etc/modules-load.d/modules.conf << _EOF_
+# /etc/modules: kernel modules to load at boot time.
+#
+# This file contains the names of kernel modules that should be loaded
+# at boot time, one per line. Lines beginning with "#" are ignored.
+#For SATA Support
+#sw_ahci_platform
+
+##Display and GPU
+##lcd
+##hdmi
+ump
+##disp
+mali
+mali_drm
+##8192cu
+##8188eu
+8189es
+gpio-sunxi
+_EOF_
+
+cd /usr/lib
+sudo -s 
+ln -sf libMali.so libEGL.so
+ln -sf libMali.so libEGL.so.1
+ln -sf libMali.so libEGL.so.1.4
+ln -sf libMali.so libGLESv1_CM.so
+ln -sf libMali.so libGLESv1_CM.so.1
+ln -sf libMali.so libGLESv1_CM.so.1.1
+ln -sf libMali.so libGLESv2.so
+ln -sf libMali.so libGLESv2.so.2
+ln -sf libMali.so libGLESv2.so.2.0 
+
+sudo depmod -a
+
+echo ""
+echo "****************************"
+echo "Please REBOOT to take effect"
+echo "****************************"
+echo ""
+echo "*********************************************************"
+echo "After reboot,you can use command"glmark2-es2" to test GPU"
+echo "*********************************************************"
+
+
+
+
+
+
