@@ -51,6 +51,7 @@
 #include "stv6110.h"
 #include "lnbh24.h"
 #include "cx24116.h"
+#include "m88ds3103.h"
 #include "cimax2.h"
 #include "lgs8gxx.h"
 #include "netup-eeprom.h"
@@ -487,6 +488,37 @@ static struct lgs8gxx_config mygica_x8506_lgs8gl5_config = {
 static struct xc5000_config mygica_x8506_xc5000_config = {
 	.i2c_address = 0x61,
 	.if_khz = 5380,
+};
+
+/* bestunar single dvb-s2 */
+static struct m88ds3103_config bst_ds3103_config = {
+	.demod_address = 0x68,
+	.ci_mode = 0,
+	.pin_ctrl = 0x82,
+	.ts_mode = 0,
+	.set_voltage = bst_set_voltage,
+};
+/* DVBSKY dual dvb-s2 */
+static struct m88ds3103_config dvbsky_ds3103_config_pri = {
+	.demod_address = 0x68,
+	.ci_mode = 0,
+	.pin_ctrl = 0x82,
+	.ts_mode = 0,
+	.set_voltage = bst_set_voltage,	
+};
+static struct m88ds3103_config dvbsky_ds3103_config_sec = {
+	.demod_address = 0x68,
+	.ci_mode = 0,
+	.pin_ctrl = 0x82,
+	.ts_mode = 1,
+	.set_voltage = dvbsky_set_voltage_sec,	
+};
+
+static struct m88ds3103_config dvbsky_ds3103_ci_config = {
+	.demod_address = 0x68,
+	.ci_mode = 2,
+	.pin_ctrl = 0x82,
+	.ts_mode = 0,
 };
 
 static int cx23885_dvb_set_frontend(struct dvb_frontend *fe)
@@ -1173,6 +1205,41 @@ static int dvb_register(struct cx23885_tsport *port)
 			break;
 		}
 		break;
+
+	case CX23885_BOARD_BST_PS8512:
+	case CX23885_BOARD_DVBSKY_S950:
+		i2c_bus = &dev->i2c_bus[1];	
+		fe0->dvb.frontend = dvb_attach(m88ds3103_attach,
+					&bst_ds3103_config,
+					&i2c_bus->i2c_adap);
+		break;	
+			
+	case CX23885_BOARD_DVBSKY_S952:
+		switch (port->nr) {
+		/* port B */
+		case 1:
+			i2c_bus = &dev->i2c_bus[1];
+			fe0->dvb.frontend = dvb_attach(m88ds3103_attach,
+						&dvbsky_ds3103_config_pri,
+						&i2c_bus->i2c_adap);
+			break;
+		/* port C */
+		case 2:
+			i2c_bus = &dev->i2c_bus[0];
+			fe0->dvb.frontend = dvb_attach(m88ds3103_attach,
+						&dvbsky_ds3103_config_sec,
+						&i2c_bus->i2c_adap);	
+			break;
+		}
+		break;
+
+	case CX23885_BOARD_DVBSKY_S950_CI:
+		i2c_bus = &dev->i2c_bus[1];	
+		fe0->dvb.frontend = dvb_attach(m88ds3103_attach,
+					&dvbsky_ds3103_ci_config,
+					&i2c_bus->i2c_adap);
+		break;
+				
 	default:
 		printk(KERN_INFO "%s: The frontend of your DVB/ATSC card "
 			" isn't supported yet\n",
@@ -1221,7 +1288,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		printk(KERN_INFO "NetUP Dual DVB-S2 CI card port%d MAC=%pM\n",
 			port->nr, port->frontends.adapter.proposed_mac);
 
-		netup_ci_init(port);
+		netup_ci_init(port, false);
 		break;
 		}
 	case CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF: {
@@ -1246,6 +1313,36 @@ static int dvb_register(struct cx23885_tsport *port)
 		tveeprom_read(&dev->i2c_bus[0].i2c_client, eeprom, sizeof(eeprom));
 		printk(KERN_INFO "TeVii S470 MAC= %pM\n", eeprom + 0xa0);
 		memcpy(port->frontends.adapter.proposed_mac, eeprom + 0xa0, 6);
+		break;
+		}
+	case CX23885_BOARD_BST_PS8512:
+	case CX23885_BOARD_DVBSKY_S950:
+	case CX23885_BOARD_DVBSKY_S952:{
+		u8 eeprom[256]; /* 24C02 i2c eeprom */
+
+		if(port->nr > 2)
+			break;
+
+		dev->i2c_bus[0].i2c_client.addr = 0xa0 >> 1;
+		tveeprom_read(&dev->i2c_bus[0].i2c_client, eeprom, sizeof(eeprom));
+		printk(KERN_INFO "DVBSKY PCIe MAC= %pM\n", eeprom + 0xc0+(port->nr-1)*8);
+		memcpy(port->frontends.adapter.proposed_mac, eeprom + 0xc0 + 
+			(port->nr-1)*8, 6);
+		break;
+		}
+	case CX23885_BOARD_DVBSKY_S950_CI: {
+		u8 eeprom[256]; /* 24C02 i2c eeprom */
+
+		if(port->nr > 2)
+			break;
+
+		dev->i2c_bus[0].i2c_client.addr = 0xa0 >> 1;
+		tveeprom_read(&dev->i2c_bus[0].i2c_client, eeprom, sizeof(eeprom));
+		printk(KERN_INFO "DVBSKY PCIe MAC= %pM\n", eeprom + 0xc0+(port->nr-1)*8);
+		memcpy(port->frontends.adapter.proposed_mac, eeprom + 0xc0 + 
+			(port->nr-1)*8, 6);
+			
+		netup_ci_init(port, true);
 		break;
 		}
 	}
@@ -1330,6 +1427,7 @@ int cx23885_dvb_unregister(struct cx23885_tsport *port)
 
 	switch (port->dev->board) {
 	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:
+	case CX23885_BOARD_DVBSKY_S950_CI:
 		netup_ci_exit(port);
 		break;
 	case CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF:

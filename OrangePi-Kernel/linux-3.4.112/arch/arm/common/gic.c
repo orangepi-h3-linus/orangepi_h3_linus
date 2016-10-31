@@ -36,6 +36,7 @@
 #include <linux/of_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/interrupt.h>
+#include <linux/irqpriority.h>
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <trace/events/arm-ipi.h>
@@ -90,6 +91,19 @@ struct irq_chip gic_arch_extn = {
 	.irq_retrigger	= NULL,
 	.irq_set_type	= NULL,
 	.irq_set_wake	= NULL,
+};
+
+/*
+ * Map generic interrupt priority levels (irqpriority_t) to GIC_DIST_PRI
+ * register value. Value should be mapped using table index assignment:
+ * [priority level] = <vale for GIC_DIST_PRI> which allow us to be compatible
+ * in case of irqpriority_t (see include/linux/irqpriority.h) further
+ * modification.
+ */
+static unsigned int priority_map [IRQP_LEVELS_NR] = {
+	[IRQP_HIGH]	= 0x00000000,
+	[IRQP_DEFAULT]	= 0xa0a0a0a0,
+	[IRQP_LOW]	= 0xe0e0e0e0,
 };
 
 #ifndef MAX_GIC_NR
@@ -424,12 +438,32 @@ static void gic_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+int gic_set_priority(struct irq_data *data, irqpriority_t priority)
+{
+	unsigned int hw_irq = gic_irq(data);
+	u32 cur_priority;
+
+	if (hw_irq < 32)
+	{
+		printk("gic_set_priority: cant set irq %i to pri %i\r\n", hw_irq, priority_map[priority]);
+		return -EINVAL;
+	}
+	
+	raw_spin_lock(&irq_controller_lock);
+	cur_priority = readl_relaxed(gic_dist_base(data) + GIC_DIST_PRI + (hw_irq / 4) * 4);
+	cur_priority = priority_map[priority];
+	writel_relaxed(cur_priority, gic_dist_base(data) + GIC_DIST_PRI + (hw_irq / 4) * 4);
+	raw_spin_unlock(&irq_controller_lock);
+	return 0;
+}
+
 static struct irq_chip gic_chip = {
 	.name			= "GIC",
 	.irq_mask		= gic_mask_irq,
 	.irq_unmask		= gic_unmask_irq,
 	.irq_eoi		= gic_eoi_irq,
 	.irq_set_type		= gic_set_type,
+	.irq_set_priority	= gic_set_priority,
 	.irq_retrigger		= gic_retrigger,
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= gic_set_affinity,

@@ -5,7 +5,7 @@ setenv bootm_boot_mode sec
 setenv bootargs "console=ttyS0,115200 console=tty1 root=/dev/mmcblk0p2 init=/sbin/init rootwait rootfstype=ext4 panic=10 consoleblank=0 enforcing=0 loglevel=7"
 
 
-fatload mmc 0 0x46000000 sun8i-h3-orangepi-lite.dtb
+fatload mmc 0 0x46000000 sun8i-h3-orangepi-pc-plus.dtb
 fatload mmc 0 0x48000000 uImage
 bootm 0x48000000 - 0x46000000
 

@@ -1321,8 +1321,9 @@ static void __raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 	struct raid5_percpu *percpu;
 	unsigned long cpu;
 
-	cpu = get_cpu();
+	cpu = get_cpu_light();
 	percpu = per_cpu_ptr(conf->percpu, cpu);
+	spin_lock(&percpu->lock);
 	if (test_bit(STRIPE_OP_BIOFILL, &ops_request)) {
 		ops_run_biofill(sh);
 		overlap_clear++;
@@ -1374,7 +1375,8 @@ static void __raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 			if (test_and_clear_bit(R5_Overlap, &dev->flags))
 				wake_up(&sh->raid_conf->wait_for_overlap);
 		}
-	put_cpu();
+	spin_unlock(&percpu->lock);
+	put_cpu_light();
 }
 
 #ifdef CONFIG_MULTICORE_RAID456
@@ -4693,8 +4695,10 @@ static int alloc_scratch_buffer(struct r5conf *conf, struct raid5_percpu *percpu
 {
 	if (conf->level == 6 && !percpu->spare_page)
 		percpu->spare_page = alloc_page(GFP_KERNEL);
-	if (!percpu->scribble)
+	if (!percpu->scribble) {
 		percpu->scribble = kmalloc(conf->scribble_len, GFP_KERNEL);
+		spin_lock_init(&percpu->lock);
+	}
 
 	if (!percpu->scribble || (conf->level == 6 && !percpu->spare_page)) {
 		free_scratch_buffer(conf, percpu);

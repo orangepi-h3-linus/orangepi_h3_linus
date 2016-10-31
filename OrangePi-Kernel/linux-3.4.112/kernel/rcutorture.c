@@ -485,6 +485,7 @@ static struct rcu_torture_ops rcu_expedited_ops = {
 	.name		= "rcu_expedited"
 };
 
+#ifndef CONFIG_PREEMPT_RT_FULL
 /*
  * Definitions for rcu_bh torture testing.
  */
@@ -557,6 +558,12 @@ static struct rcu_torture_ops rcu_bh_expedited_ops = {
 	.irq_capable	= 1,
 	.name		= "rcu_bh_expedited"
 };
+
+#else
+static struct rcu_torture_ops rcu_bh_ops = {
+	.ttype		= INVALID_RCU_FLAVOR,
+};
+#endif
 
 /*
  * Definitions for srcu torture testing.

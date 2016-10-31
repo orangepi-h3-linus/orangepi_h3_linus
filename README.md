@@ -1,8 +1,10 @@
-#The OrangePi-Kernel contains Linux kernel sources (3.4.112) adapted for OrangePI H3 boards, gcc toolchain
+#The OrangePi-Kernel contains Linux kernel sources (3.4.112 and 4.9) adapted for OrangePI H3 boards, gcc toolchain
 #The script "build_linux_kernel.sh" can be used to build the kernel
 
+The kernel 4.9 only support USB WLAN MMC UART ETHERNET HDMI OTG, other function temporarily does not support 
 
-##Example1(how to make uImage)：
+
+##Example1(how to make uImage 3.4.112)：
 #$ cd OrangePI-Kernel
 ##cleans the kernel tree before build
 #$ sudo ./build_linux_kernel.sh clean clean   
@@ -19,7 +21,26 @@
 
 
 
-##Example2(configure desktop)
+##Example2(how to make uImage 4.9 and uboot)：
+#$ cd OrangePI-Kernel
+##builds the u-boot-sunxi-with-spl.bin and boot.scr for OPI boards
+#$ sudo ./build_mainline_uboot.sh [2 | pc | plus | lite | pc-plus | one | plus2e]    
+##cleans the uboot tree before build                   
+#$ sudo ./build_linux_kernel_mainline.sh clean                              
+##builds the uImage for OPI                   
+#$ sudo ./build_linux_kernel_mainline.sh opi
+#$ cd ../OrangePi-BuildLinux  
+##build file system
+#$ sudo ./create_image    
+##build plus image                                        
+#$ sudo ./image_from_dir_mainline ./linux-trusty orangepi ext4 opi
+#$ sudo dd bs=4M if=orangepi.img of=/dev/sd*                  
+##Read and edit "params.sh" to adjust the parameters to your needs
+
+
+
+
+##Example3(configure desktop)
 ##After BOOTING,to resize linux partition to fill sd card
 #$ fs_resize
 #$ reboot
@@ -52,3 +73,6 @@
 #$ sudo install_ibus_shuru
 ##install the camera driver, can be used to provide the official website of the camera
 #$ sudo install_camera_ko
+
+
+

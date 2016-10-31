@@ -33,6 +33,12 @@ config BCMDHD_WEXT
 	help
 	  Enables WEXT support
 
+config BCMDHD_DISABLE_WOWLAN
+	bool "Disable Wake on WLAN"
+	depends on BCMDHD
+	help
+	  Disables Wake on WLAN
+
 choice
 	depends on BCMDHD
 	prompt "Interrupt type"

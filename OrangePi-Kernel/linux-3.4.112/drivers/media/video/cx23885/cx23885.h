@@ -89,6 +89,10 @@
 #define CX23885_BOARD_MPX885                   32
 #define CX23885_BOARD_MYGICA_X8507             33
 #define CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL 34
+#define CX23885_BOARD_BST_PS8512				35
+#define CX23885_BOARD_DVBSKY_S952				36
+#define CX23885_BOARD_DVBSKY_S950				37
+#define CX23885_BOARD_DVBSKY_S950_CI			38
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -227,7 +231,7 @@ struct cx23885_board {
 	 */
 	u32			clk_freq;
 	struct cx23885_input    input[MAX_CX23885_INPUT];
-	int			ci_type; /* for NetUP */
+	int			ci_type; /* 1 and 2 for NetUP, 3 for DVBSky. */
 	/* Force bottom field first during DMA (888 workaround) */
 	u32                     force_bff;
 };

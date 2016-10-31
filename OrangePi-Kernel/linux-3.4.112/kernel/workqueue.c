@@ -138,6 +138,7 @@ struct worker {
 	unsigned int		flags;		/* X: flags */
 	int			id;		/* I: worker id */
 	struct work_struct	rebind_work;	/* L: rebind worker to cpu */
+	int			sleeping;	/* None */
 };
 
 /*
@@ -317,6 +318,31 @@ static inline int __next_wq_cpu(int cpu, const struct cpumask *mask,
 	for ((cpu) = __next_wq_cpu(-1, cpu_possible_mask, (wq));	\
 	     (cpu) < WORK_CPU_NONE;					\
 	     (cpu) = __next_wq_cpu((cpu), cpu_possible_mask, (wq)))
+
+#ifdef CONFIG_PREEMPT_RT_BASE
+static inline void rt_lock_idle_list(struct global_cwq *gcwq)
+{
+	preempt_disable();
+}
+static inline void rt_unlock_idle_list(struct global_cwq *gcwq)
+{
+	preempt_enable();
+}
+static inline void sched_lock_idle_list(struct global_cwq *gcwq) { }
+static inline void sched_unlock_idle_list(struct global_cwq *gcwq) { }
+#else
+static inline void rt_lock_idle_list(struct global_cwq *gcwq) { }
+static inline void rt_unlock_idle_list(struct global_cwq *gcwq) { }
+static inline void sched_lock_idle_list(struct global_cwq *gcwq)
+{
+	spin_lock_irq(&gcwq->lock);
+}
+static inline void sched_unlock_idle_list(struct global_cwq *gcwq)
+{
+	spin_unlock_irq(&gcwq->lock);
+}
+#endif
+
 
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
 
@@ -649,73 +675,69 @@ static struct worker *first_worker(struct global_cwq *gcwq)
  */
 static void wake_up_worker(struct global_cwq *gcwq)
 {
-	struct worker *worker = first_worker(gcwq);
+	struct worker *worker;
+
+	rt_lock_idle_list(gcwq);
+
+	worker = first_worker(gcwq);
 
 	if (likely(worker))
 		wake_up_process(worker->task);
+
+	rt_unlock_idle_list(gcwq);
 }
 
 /**
- * wq_worker_waking_up - a worker is waking up
- * @task: task waking up
- * @cpu: CPU @task is waking up to
+ * wq_worker_running - a worker is running again
+ * @task: task returning from sleep
  *
- * This function is called during try_to_wake_up() when a worker is
- * being awoken.
- *
- * CONTEXT:
- * spin_lock_irq(rq->lock)
+ * This function is called when a worker returns from schedule()
  */
-void wq_worker_waking_up(struct task_struct *task, unsigned int cpu)
+void wq_worker_running(struct task_struct *task)
 {
 	struct worker *worker = kthread_data(task);
 
+	if (!worker->sleeping)
+		return;
 	if (!(worker->flags & WORKER_NOT_RUNNING))
-		atomic_inc(get_gcwq_nr_running(cpu));
+		atomic_inc(get_gcwq_nr_running(smp_processor_id()));
+	worker->sleeping = 0;
 }
 
 /**
  * wq_worker_sleeping - a worker is going to sleep
  * @task: task going to sleep
- * @cpu: CPU in question, must be the current CPU number
  *
- * This function is called during schedule() when a busy worker is
- * going to sleep.  Worker on the same cpu can be woken up by
- * returning pointer to its task.
- *
- * CONTEXT:
- * spin_lock_irq(rq->lock)
- *
- * RETURNS:
- * Worker task on @cpu to wake up, %NULL if none.
+ * This function is called from schedule() when a busy worker is
+ * going to sleep.
  */
-struct task_struct *wq_worker_sleeping(struct task_struct *task,
-				       unsigned int cpu)
+void wq_worker_sleeping(struct task_struct *task)
 {
-	struct worker *worker = kthread_data(task), *to_wakeup = NULL;
-	struct global_cwq *gcwq = get_gcwq(cpu);
-	atomic_t *nr_running = get_gcwq_nr_running(cpu);
+	struct worker *worker = kthread_data(task);
+	struct global_cwq *gcwq;
+	int cpu;
 
 	if (worker->flags & WORKER_NOT_RUNNING)
-		return NULL;
+		return;
 
-	/* this can only happen on the local cpu */
-	BUG_ON(cpu != raw_smp_processor_id());
+	if (WARN_ON_ONCE(worker->sleeping))
+		return;
 
+	worker->sleeping = 1;
+
+	cpu = smp_processor_id();
+	gcwq = get_gcwq(cpu);
 	/*
 	 * The counterpart of the following dec_and_test, implied mb,
 	 * worklist not empty test sequence is in insert_work().
 	 * Please read comment there.
-	 *
-	 * NOT_RUNNING is clear.  This means that trustee is not in
-	 * charge and we're running on the local cpu w/ rq lock held
-	 * and preemption disabled, which in turn means that none else
-	 * could be manipulating idle_list, so dereferencing idle_list
-	 * without gcwq lock is safe.
 	 */
-	if (atomic_dec_and_test(nr_running) && !list_empty(&gcwq->worklist))
-		to_wakeup = first_worker(gcwq);
-	return to_wakeup ? to_wakeup->task : NULL;
+	if (atomic_dec_and_test(get_gcwq_nr_running(cpu)) &&
+	    !list_empty(&gcwq->worklist)) {
+		sched_lock_idle_list(gcwq);
+		wake_up_worker(gcwq);
+		sched_unlock_idle_list(gcwq);
+	}
 }
 
 /**
@@ -1085,8 +1107,8 @@ int queue_work(struct workqueue_struct *wq, struct work_struct *work)
 {
 	int ret;
 
-	ret = queue_work_on(get_cpu(), wq, work);
-	put_cpu();
+	ret = queue_work_on(get_cpu_light(), wq, work);
+	put_cpu_light();
 
 	return ret;
 }
@@ -1230,13 +1252,8 @@ static void worker_enter_idle(struct worker *worker)
 	} else
 		wake_up_all(&gcwq->trustee_wait);
 
-	/*
-	 * Sanity check nr_running.  Because trustee releases gcwq->lock
-	 * between setting %WORKER_ROGUE and zapping nr_running, the
-	 * warning may trigger spuriously.  Check iff trustee is idle.
-	 */
-	WARN_ON_ONCE(gcwq->trustee_state == TRUSTEE_DONE &&
-		     gcwq->nr_workers == gcwq->nr_idle &&
+	/* sanity check nr_running */
+	WARN_ON_ONCE(gcwq->nr_workers == gcwq->nr_idle &&
 		     atomic_read(get_gcwq_nr_running(gcwq->cpu)));
 }
 
@@ -3579,6 +3596,25 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 				kthread_stop(new_trustee);
 			return NOTIFY_BAD;
 		}
+		break;
+	case CPU_POST_DEAD:
+	case CPU_UP_CANCELED:
+	case CPU_DOWN_FAILED:
+	case CPU_ONLINE:
+		break;
+	case CPU_DYING:
+		/*
+		 * We access this lockless. We are on the dying CPU
+		 * and called from stomp machine.
+		 *
+		 * Before this, the trustee and all workers except for
+		 * the ones which are still executing works from
+		 * before the last CPU down must be on the cpu.  After
+		 * this, they'll all be diasporas.
+		 */
+		gcwq->flags |= GCWQ_DISASSOCIATED;
+	default:
+		goto out;
 	}
 
 	/* some are called w/ irq disabled, don't disturb irq status */
@@ -3596,16 +3632,6 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 	case CPU_UP_PREPARE:
 		BUG_ON(gcwq->first_idle);
 		gcwq->first_idle = new_worker;
-		break;
-
-	case CPU_DYING:
-		/*
-		 * Before this, the trustee and all workers except for
-		 * the ones which are still executing works from
-		 * before the last CPU down must be on the cpu.  After
-		 * this, they'll all be diasporas.
-		 */
-		gcwq->flags |= GCWQ_DISASSOCIATED;
 		break;
 
 	case CPU_POST_DEAD:
@@ -3641,6 +3667,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 
 	spin_unlock_irqrestore(&gcwq->lock, flags);
 
+out:
 	return notifier_from_errno(0);
 }
 

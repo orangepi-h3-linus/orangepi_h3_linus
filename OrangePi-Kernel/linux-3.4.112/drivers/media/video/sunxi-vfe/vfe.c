@@ -915,9 +915,10 @@ static void update_isp_setting(struct vfe_dev *dev)
 		dev->isp_gen_set_pt->module_cfg.linear_table= dev->isp_tbl_addr[dev->input].isp_linear_tbl_vaddr;
 		dev->isp_gen_set_pt->module_cfg.disc_table = dev->isp_tbl_addr[dev->input].isp_disc_tbl_vaddr;
 		bsp_isp_update_lut_lens_gamma_table(&dev->isp_tbl_addr[dev->input]);
+
+		dev->isp_gen_set_pt->module_cfg.drc_table = dev->isp_tbl_addr[dev->input].isp_drc_tbl_vaddr;
+		bsp_isp_update_drc_table(&dev->isp_tbl_addr[dev->input]);
 	}
-	dev->isp_gen_set_pt->module_cfg.drc_table = dev->isp_tbl_addr[dev->input].isp_drc_tbl_vaddr;
-	bsp_isp_update_drc_table(&dev->isp_tbl_addr[dev->input]);
 }
 
 static int get_mbus_config(struct vfe_dev *dev, struct v4l2_mbus_config *mbus_config)

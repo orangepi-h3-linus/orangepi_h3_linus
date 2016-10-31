@@ -14,7 +14,7 @@
 #include <linux/timer.h>
 #include <linux/freezer.h>
 
-#include "rtmutex.h"
+#include "rtmutex_common.h"
 
 #define MAX_RT_TEST_THREADS	8
 #define MAX_RT_TEST_MUTEXES	8
@@ -105,7 +105,7 @@ static int handle_op(struct test_thread_data *td, int lockwakeup)
 
 		td->mutexes[id] = 1;
 		td->event = atomic_add_return(1, &rttest_event);
-		ret = rt_mutex_lock_interruptible(&mutexes[id], 0);
+		ret = rt_mutex_lock_interruptible(&mutexes[id]);
 		td->event = atomic_add_return(1, &rttest_event);
 		td->mutexes[id] = ret ? 0 : 4;
 		return ret ? -EINTR : 0;

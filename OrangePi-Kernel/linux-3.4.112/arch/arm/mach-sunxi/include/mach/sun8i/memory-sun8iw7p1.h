@@ -18,6 +18,10 @@
 #define __MEMORY_SUN8I_W5P1_H
 
 #define PLAT_PHYS_OFFSET         UL(0x40000000)
+#define __phys_to_bus(x) ((u32)(x) < PLAT_PHYS_OFFSET ? (x) : \
+							(x) - PLAT_PHYS_OFFSET)
+#define __bus_to_phys(x) ((x) + PLAT_PHYS_OFFSET)
+
 #ifdef CONFIG_EVB_PLATFORM
 #define PLAT_MEM_SIZE            SZ_2G
 #else

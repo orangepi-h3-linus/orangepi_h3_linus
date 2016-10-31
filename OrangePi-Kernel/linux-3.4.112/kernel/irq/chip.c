@@ -14,6 +14,7 @@
 #include <linux/msi.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/irqpriority.h>
 #include <linux/kernel_stat.h>
 
 #include <trace/events/irq.h>
@@ -252,6 +253,14 @@ void unmask_irq(struct irq_desc *desc)
 		desc->irq_data.chip->irq_unmask(&desc->irq_data);
 		irq_state_clr_masked(desc);
 	}
+}
+
+int irq_set_priority(struct irq_desc *desc, irqpriority_t priority)
+{
+	if (!desc->irq_data.chip->irq_set_priority)
+		return -EINVAL;
+
+	return desc->irq_data.chip->irq_set_priority(&desc->irq_data, priority);
 }
 
 /*

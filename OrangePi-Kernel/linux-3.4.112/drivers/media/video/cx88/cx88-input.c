@@ -419,6 +419,10 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		rc_type          = RC_TYPE_NEC;
 		ir->sampling     = 0xff00; /* address */
 		break;
+	case CX88_BOARD_BST_PS8312: 
+		ir_codes         = RC_MAP_DVBSKY;
+		ir->sampling     = 0xff00; /* address */
+		break;	
 	}
 
 	if (!ir_codes) {

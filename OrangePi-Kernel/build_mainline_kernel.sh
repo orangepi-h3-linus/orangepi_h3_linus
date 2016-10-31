@@ -1,12 +1,9 @@
 #!/bin/bash
 
 # === USAGE ===========================================
-# build_linux_kernel <board> [clean]
-# <board> = 2     ->  build for OPI-2/OPI-PC
-# <board> = plus  ->  build for OPI-PLUS
-# <board> = all   ->  build for OPI-2/OPI-PC & OPI-PLUS
-# <board> = clean ->  clean all
-# if 2nd parameter is clean, cleans all before build
+# build_linux_kernel <board | clean> 
+# <board> = opi   ->  build for OrangePi
+# <clean> = clean ->  clean all
 # =====================================================
 # After build uImage and lib are in build directory
 # =====================================================
@@ -35,7 +32,7 @@ cd ..
 #=========================================================
 
 
-cd linux-4.7.6
+cd linux-4.9
 LINKERNEL_DIR=`pwd`
 
 # build rootfs
@@ -69,7 +66,8 @@ cp ../build/rootfs-lobo.img.gz output/rootfs.cpio.gz
     if [ "${1}" = "opi" ]; then
     	echo "Building kernel for OPI ..."
     	echo "  Configuring ..."
-    	make -j6 ARCH=arm CROSS_COMPILE=${cross_comp}- sun8iw7p1_mainline_defconfig zImage modules > ../kbuild_OPI.log 2>&1
+        cp arch/arm/configs/sun8iw7p1_mainline_defconfig .config 
+    	make -j6 ARCH=arm CROSS_COMPILE=${cross_comp}- > ../kbuild_OPI.log 2>&1
     	if [ $? -ne 0 ]; then
         	echo "  Error: KERNEL NOT BUILT."
         	exit 1
@@ -80,7 +78,7 @@ cp ../build/rootfs-lobo.img.gz output/rootfs.cpio.gz
     # build kernel (use -jN, where N is number of cores you can spare for building)
     	echo "  Building kernel & modules ..."
 		cd arch/arm/boot/
-		mkimage -A arm -O linux -T kernel -C none -a 0x48000000 -e 0x48000000 -n linux-4.7.6 -d zImage uImage
+		mkimage -A arm -O linux -T kernel -C none -a 0x48000000 -e 0x48000000 -n linux-4.9 -d zImage uImage
 		cd ../../../
     	if [ $? -ne 0 ] || [ ! -f arch/arm/boot/uImage ]; then
         	echo "  Error: KERNEL NOT BUILT."
@@ -107,12 +105,26 @@ cp ../build/rootfs-lobo.img.gz output/rootfs.cpio.gz
     # #####################
     # Copy uImage to output
     	cp arch/arm/boot/uImage output/uImage
+        cp arch/arm/boot/dts/sun8i-h3-orangepi-one.dtb output/
+        cp arch/arm/boot/dts/sun8i-h3-orangepi-lite.dtb output/
+        cp arch/arm/boot/dts/sun8i-h3-orangepi-plus.dtb output/
+        cp arch/arm/boot/dts/sun8i-h3-orangepi-2.dtb output/
+        cp arch/arm/boot/dts/sun8i-h3-orangepi-pc-plus.dtb output/
+        cp arch/arm/boot/dts/sun8i-h3-orangepi-plus2e.dtb output/
+        cp arch/arm/boot/dts/sun8i-h3-orangepi-pc.dtb output/
 		cd ..
     	cd $LINKERNEL_DIR
-    	cp arch/arm/boot/uImage ../build/uImage
+    	cp arch/arm/boot/uImage ../build/lib/uImage
     	[ ! -d ../build/lib ] && mkdir ../build/lib
     	rm -rf ../build/lib/*
     	cp -R output/lib/* ../build/lib
+        cp output/sun8i-h3-orangepi-one.dtb ../build/lib
+        cp output/sun8i-h3-orangepi-lite.dtb ../build/lib
+        cp output/sun8i-h3-orangepi-2.dtb ../build/lib
+        cp output/sun8i-h3-orangepi-plus.dtb ../build/lib
+        cp output/sun8i-h3-orangepi-plus2e.dtb ../build/lib
+        cp output/sun8i-h3-orangepi-pc-plus.dtb ../build/lib
+        cp output/sun8i-h3-orangepi-pc.dtb ../build/lib
         
 
 		rm -rf ../../OrangePi-BuildLinux/orange/lib/* 
@@ -122,4 +134,3 @@ cp ../build/rootfs-lobo.img.gz output/rootfs.cpio.gz
 
 echo "***OK***"
 
-# cp uImage  sun8i-h3-orangepi-${1}.dtb -> boot分区

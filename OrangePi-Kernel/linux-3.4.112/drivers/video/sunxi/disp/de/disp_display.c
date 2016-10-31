@@ -740,6 +740,30 @@ s32 bsp_disp_get_screen_width_from_output_type(u32 screen_id, u32 output_type, u
 			width = 3840;
 			height = 2160;
 			break;
+		case DISP_TV_MOD_800_480P:
+			width = 800;
+			height = 480;
+			break;
+		case DISP_TV_MOD_1024_768P:
+			width = 1024;
+			height = 768;
+			break;
+		case DISP_TV_MOD_1280_1024P:
+			width = 1280;
+			height = 1024;
+			break;
+		case DISP_TV_MOD_1360_768P:
+			width = 1360;
+			height = 768;
+			break;
+		case DISP_TV_MOD_1440_900P:
+			width = 1440;
+			height = 900;
+			break;
+		case DISP_TV_MOD_1680_1050P:
+			width = 1680;
+			height = 1050;			
+			break;
 		default:
 			printk("err:function:%s, line:%d,output_mode=%d\n", __func__, __LINE__, output_mode);
 		}
@@ -793,6 +817,30 @@ s32 bsp_disp_get_screen_height_from_output_type(u32 screen_id, u32 output_type, 
 		case DISP_TV_MOD_3840_2160P_24HZ:
 			width = 3840;
 			height = 2160;
+			break;
+		case DISP_TV_MOD_800_480P:
+			width = 800;
+			height = 480;
+			break;
+		case DISP_TV_MOD_1024_768P:
+			width = 1024;
+			height = 768;
+			break;
+		case DISP_TV_MOD_1280_1024P:
+			width = 1280;
+			height = 1024;
+			break;
+		case DISP_TV_MOD_1360_768P:
+			width = 1360;
+			height = 768;
+			break;
+		case DISP_TV_MOD_1440_900P:
+			width = 1440;
+			height = 900;
+			break;
+		case DISP_TV_MOD_1680_1050P:
+			width = 1680;
+			height = 1050;			
 			break;
 		default:
 			printk("err:function:%s, line:%d,output_mode=%d\n", __func__, __LINE__, output_mode);

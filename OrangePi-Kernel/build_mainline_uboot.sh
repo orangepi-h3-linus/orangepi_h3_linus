@@ -1,14 +1,18 @@
 #!/bin/bash
-# Usage:  sudo ./build_mainline_uboot.sh [2|pc|plus|lite|pc_plus|one|plus2e]
+# Usage: ./build_mainline_uboot.sh [2 | pc | plus | lite | pc-plus | one | plus2e]
 
 #==========================================================
-if [ "{1}" = "" ]; then
-	echo "USAGE: sudo ./build_mainline_uboot.sh [2|pc|plus|lite|pc_plus|one|plus2e]"
-	exit 0
+basepath=$(cd `dirname $0`; pwd)
+
+if [ "${1}" = "" ]; then
+	echo "USAGE: sudo ./build_mainline_uboot.sh [2|pc|plus|lite|pc-plus|one|plus2e]"
+	exit -1
 fi
 
 echo "check uboot source ..."
-cd u-boot-2016.07/configs/
+echo " "
+cd $basepath/u-boot-2016.7/configs
+ 
 config="orangepi_${1}_defconfig"
 dts="sun8i-h3-orangepi-${1}.dtb"
 echo $config
@@ -34,7 +38,7 @@ fi
 	echo " "
 	echo $PWD
 	echo " "
-	cp ../../u-boot-2016.07/u-boot-sunxi-with-spl.bin ./ -rf  
+	cp ../../u-boot-2016.7/u-boot-sunxi-with-spl.bin ./ -rf  
 	echo "****************************************Compile uboot OK***********************************"
 
 
@@ -50,7 +54,6 @@ cp -rf boot.scr orangepi.cmd ../../../
 cd ../../../
 mv  boot.scr orangepi.cmd ./OrangePi-BuildLinux/orange
 echo $PWD
-# cp boot.scr orangepi.cmd -> boot分区
 
 
 

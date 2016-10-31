@@ -15,6 +15,7 @@
 #include <linux/rcupdate.h>
 #include <linux/kobject.h>
 #include <linux/uaccess.h>
+#include <linux/kthread.h>
 #include <linux/kdebug.h>
 #include <linux/kernel.h>
 #include <linux/percpu.h>
@@ -38,6 +39,7 @@
 #include <linux/debugfs.h>
 #include <linux/irq_work.h>
 #include <linux/export.h>
+#include <linux/jiffies.h>
 
 #include <asm/processor.h>
 #include <asm/mce.h>
@@ -1250,17 +1252,14 @@ void mce_log_therm_throt_event(__u64 status)
  * poller finds an MCE, poll 2x faster.  When the poller finds no more
  * errors, poll 2x slower (up to check_interval seconds).
  */
-static int check_interval = 5 * 60; /* 5 minutes */
+static unsigned long check_interval = 5 * 60; /* 5 minutes */
 
-static DEFINE_PER_CPU(int, mce_next_interval); /* in jiffies */
-static DEFINE_PER_CPU(struct timer_list, mce_timer);
+static DEFINE_PER_CPU(unsigned long, mce_next_interval); /* in jiffies */
+static DEFINE_PER_CPU(struct hrtimer, mce_timer);
 
-static void mce_start_timer(unsigned long data)
+static enum hrtimer_restart mce_start_timer(struct hrtimer *timer)
 {
-	struct timer_list *t = &per_cpu(mce_timer, data);
-	int *n;
-
-	WARN_ON(smp_processor_id() != data);
+	unsigned long *n;
 
 	if (mce_available(__this_cpu_ptr(&cpu_info))) {
 		machine_check_poll(MCP_TIMESTAMP,
@@ -1273,21 +1272,22 @@ static void mce_start_timer(unsigned long data)
 	 */
 	n = &__get_cpu_var(mce_next_interval);
 	if (mce_notify_irq())
-		*n = max(*n/2, HZ/100);
+		*n = max(*n/2, HZ/100UL);
 	else
-		*n = min(*n*2, (int)round_jiffies_relative(check_interval*HZ));
+		*n = min(*n*2, round_jiffies_relative(check_interval*HZ));
 
-	t->expires = jiffies + *n;
-	add_timer_on(t, smp_processor_id());
+	hrtimer_forward(timer, timer->base->get_time(),
+			ns_to_ktime(jiffies_to_usecs(*n) * 1000ULL));
+	return HRTIMER_RESTART;
 }
 
-/* Must not be called in IRQ context where del_timer_sync() can deadlock */
+/* Must not be called in IRQ context where hrtimer_cancel() can deadlock */
 static void mce_timer_delete_all(void)
 {
 	int cpu;
 
 	for_each_online_cpu(cpu)
-		del_timer_sync(&per_cpu(mce_timer, cpu));
+		hrtimer_cancel(&per_cpu(mce_timer, cpu));
 }
 
 static void mce_do_trigger(struct work_struct *work)
@@ -1297,6 +1297,64 @@ static void mce_do_trigger(struct work_struct *work)
 
 static DECLARE_WORK(mce_trigger_work, mce_do_trigger);
 
+static void __mce_notify_work(void)
+{
+	/* Not more than two messages every minute */
+	static DEFINE_RATELIMIT_STATE(ratelimit, 60*HZ, 2);
+
+	/* wake processes polling /dev/mcelog */
+	wake_up_interruptible(&mce_chrdev_wait);
+
+	/*
+	 * There is no risk of missing notifications because
+	 * work_pending is always cleared before the function is
+	 * executed.
+	 */
+	if (mce_helper[0] && !work_pending(&mce_trigger_work))
+		schedule_work(&mce_trigger_work);
+
+	if (__ratelimit(&ratelimit))
+		pr_info(HW_ERR "Machine check events logged\n");
+}
+
+#ifdef CONFIG_PREEMPT_RT_FULL
+struct task_struct *mce_notify_helper;
+
+static int mce_notify_helper_thread(void *unused)
+{
+	while (1) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+		if (kthread_should_stop())
+			break;
+		__mce_notify_work();
+	}
+	return 0;
+}
+
+static int mce_notify_work_init(void)
+{
+	mce_notify_helper = kthread_run(mce_notify_helper_thread, NULL,
+					   "mce-notify");
+	if (!mce_notify_helper)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void mce_notify_work(void)
+{
+	if (mce_notify_helper)
+		wake_up_process(mce_notify_helper);
+}
+#else
+static void mce_notify_work(void)
+{
+	__mce_notify_work();
+}
+static inline int mce_notify_work_init(void) { return 0; }
+#endif
+
 /*
  * Notify the user(s) about new machine check events.
  * Can be called from interrupt context, but not from machine check/NMI
@@ -1304,24 +1362,8 @@ static DECLARE_WORK(mce_trigger_work, mce_do_trigger);
  */
 int mce_notify_irq(void)
 {
-	/* Not more than two messages every minute */
-	static DEFINE_RATELIMIT_STATE(ratelimit, 60*HZ, 2);
-
 	if (test_and_clear_bit(0, &mce_need_notify)) {
-		/* wake processes polling /dev/mcelog */
-		wake_up_interruptible(&mce_chrdev_wait);
-
-		/*
-		 * There is no risk of missing notifications because
-		 * work_pending is always cleared before the function is
-		 * executed.
-		 */
-		if (mce_helper[0] && !work_pending(&mce_trigger_work))
-			schedule_work(&mce_trigger_work);
-
-		if (__ratelimit(&ratelimit))
-			pr_info(HW_ERR "Machine check events logged\n");
-
+		mce_notify_work();
 		return 1;
 	}
 	return 0;
@@ -1517,10 +1559,11 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 
 static void __mcheck_cpu_init_timer(void)
 {
-	struct timer_list *t = &__get_cpu_var(mce_timer);
-	int *n = &__get_cpu_var(mce_next_interval);
+	struct hrtimer *t = &__get_cpu_var(mce_timer);
+	unsigned long *n = &__get_cpu_var(mce_next_interval);
 
-	setup_timer(t, mce_start_timer, smp_processor_id());
+	hrtimer_init(t, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	t->function = mce_start_timer;
 
 	if (mce_ignore_ce)
 		return;
@@ -1528,8 +1571,9 @@ static void __mcheck_cpu_init_timer(void)
 	*n = check_interval * HZ;
 	if (!*n)
 		return;
-	t->expires = round_jiffies(jiffies + *n);
-	add_timer_on(t, smp_processor_id());
+
+	hrtimer_start_range_ns(t, ns_to_ktime(jiffies_to_usecs(*n) * 1000ULL),
+			       0 , HRTIMER_MODE_REL_PINNED);
 }
 
 /* Handle unconfigured int18 (should never happen) */
@@ -2181,6 +2225,8 @@ static void __cpuinit mce_disable_cpu(void *h)
 	if (!mce_available(__this_cpu_ptr(&cpu_info)))
 		return;
 
+	hrtimer_cancel(&__get_cpu_var(mce_timer));
+
 	if (!(action & CPU_TASKS_FROZEN))
 		cmci_clear();
 	for (i = 0; i < banks; i++) {
@@ -2207,6 +2253,7 @@ static void __cpuinit mce_reenable_cpu(void *h)
 		if (b->init)
 			wrmsrl(MSR_IA32_MCx_CTL(i), b->ctl);
 	}
+	__mcheck_cpu_init_timer();
 }
 
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
@@ -2214,7 +2261,6 @@ static int __cpuinit
 mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
-	struct timer_list *t = &per_cpu(mce_timer, cpu);
 
 	switch (action) {
 	case CPU_ONLINE:
@@ -2231,16 +2277,10 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		break;
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
-		del_timer_sync(t);
 		smp_call_function_single(cpu, mce_disable_cpu, &action, 1);
 		break;
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
-		if (!mce_ignore_ce && check_interval) {
-			t->expires = round_jiffies(jiffies +
-					   __get_cpu_var(mce_next_interval));
-			add_timer_on(t, cpu);
-		}
 		smp_call_function_single(cpu, mce_reenable_cpu, &action, 1);
 		break;
 	case CPU_POST_DEAD:
@@ -2300,6 +2340,8 @@ static __init int mcheck_init_device(void)
 
 	/* register character device /dev/mcelog */
 	misc_register(&mce_chrdev_device);
+
+	err = mce_notify_work_init();
 
 	return err;
 }

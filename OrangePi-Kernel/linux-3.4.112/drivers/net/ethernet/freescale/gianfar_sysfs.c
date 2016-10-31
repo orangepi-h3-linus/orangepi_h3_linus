@@ -68,7 +68,7 @@ static ssize_t gfar_set_bd_stash(struct device *dev,
 		return count;
 
 
-	local_irq_save(flags);
+	local_irq_save_nort(flags);
 	lock_rx_qs(priv);
 
 	/* Set the new stashing value */
@@ -84,7 +84,7 @@ static ssize_t gfar_set_bd_stash(struct device *dev,
 	gfar_write(&regs->attr, temp);
 
 	unlock_rx_qs(priv);
-	local_irq_restore(flags);
+	local_irq_restore_nort(flags);
 
 	return count;
 }
@@ -112,7 +112,7 @@ static ssize_t gfar_set_rx_stash_size(struct device *dev,
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_BUF_STASHING))
 		return count;
 
-	local_irq_save(flags);
+	local_irq_save_nort(flags);
 	lock_rx_qs(priv);
 
 	if (length > priv->rx_buffer_size)
@@ -140,7 +140,7 @@ static ssize_t gfar_set_rx_stash_size(struct device *dev,
 
 out:
 	unlock_rx_qs(priv);
-	local_irq_restore(flags);
+	local_irq_restore_nort(flags);
 
 	return count;
 }
@@ -171,7 +171,7 @@ static ssize_t gfar_set_rx_stash_index(struct device *dev,
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_BUF_STASHING))
 		return count;
 
-	local_irq_save(flags);
+	local_irq_save_nort(flags);
 	lock_rx_qs(priv);
 
 	if (index > priv->rx_stash_size)
@@ -189,7 +189,7 @@ static ssize_t gfar_set_rx_stash_index(struct device *dev,
 
 out:
 	unlock_rx_qs(priv);
-	local_irq_restore(flags);
+	local_irq_restore_nort(flags);
 
 	return count;
 }
@@ -219,7 +219,7 @@ static ssize_t gfar_set_fifo_threshold(struct device *dev,
 	if (length > GFAR_MAX_FIFO_THRESHOLD)
 		return count;
 
-	local_irq_save(flags);
+	local_irq_save_nort(flags);
 	lock_tx_qs(priv);
 
 	priv->fifo_threshold = length;
@@ -230,7 +230,7 @@ static ssize_t gfar_set_fifo_threshold(struct device *dev,
 	gfar_write(&regs->fifo_tx_thr, temp);
 
 	unlock_tx_qs(priv);
-	local_irq_restore(flags);
+	local_irq_restore_nort(flags);
 
 	return count;
 }
@@ -259,7 +259,7 @@ static ssize_t gfar_set_fifo_starve(struct device *dev,
 	if (num > GFAR_MAX_FIFO_STARVE)
 		return count;
 
-	local_irq_save(flags);
+	local_irq_save_nort(flags);
 	lock_tx_qs(priv);
 
 	priv->fifo_starve = num;
@@ -270,7 +270,7 @@ static ssize_t gfar_set_fifo_starve(struct device *dev,
 	gfar_write(&regs->fifo_tx_starve, temp);
 
 	unlock_tx_qs(priv);
-	local_irq_restore(flags);
+	local_irq_restore_nort(flags);
 
 	return count;
 }
@@ -300,7 +300,7 @@ static ssize_t gfar_set_fifo_starve_off(struct device *dev,
 	if (num > GFAR_MAX_FIFO_STARVE_OFF)
 		return count;
 
-	local_irq_save(flags);
+	local_irq_save_nort(flags);
 	lock_tx_qs(priv);
 
 	priv->fifo_starve_off = num;
@@ -311,7 +311,7 @@ static ssize_t gfar_set_fifo_starve_off(struct device *dev,
 	gfar_write(&regs->fifo_tx_starve_shutoff, temp);
 
 	unlock_tx_qs(priv);
-	local_irq_restore(flags);
+	local_irq_restore_nort(flags);
 
 	return count;
 }

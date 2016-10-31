@@ -1467,17 +1467,22 @@ u8 rtw_check_invalid_mac_address(u8 *mac_addr, u8 check_local_bit)
 		goto func_exit;
 	}
 
+#if 0
 	if (check_local_bit == _TRUE) {
 		if (mac_addr[0] & BIT1) {
 			res = _TRUE;
 			goto func_exit;
 		}
 	}
+#else
+	(void) check_local_bit;
+#endif
 
 func_exit:
 	return res;
 }
 
+extern void wifi_hwaddr_from_chipid(u8 *addr);
 extern char* rtw_initmac;
 /**
  * rtw_macaddr_cfg - Decide the mac address used
@@ -1508,6 +1513,11 @@ void rtw_macaddr_cfg(u8 *out, const u8 *hw_mac_addr)
 #ifdef CONFIG_PLATFORM_INTEL_BYT
 	if (rtw_get_mac_addr_intel(mac) == 0)
 		goto err_chk;
+#endif
+
+#ifdef CONFIG_PLATFORM_ARM_SUN8I
+	wifi_hwaddr_from_chipid(mac);
+	goto err_chk;
 #endif
 
 	/* Use the mac address stored in the Efuse */

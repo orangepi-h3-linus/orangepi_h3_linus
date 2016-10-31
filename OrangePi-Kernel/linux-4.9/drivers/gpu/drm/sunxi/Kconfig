@@ -1,0 +1,29 @@
+#
+# Allwinner Video configuration
+#
+
+config DRM_SUNXI
+	tristate "DRM Support for Allwinner Video"
+	depends on DRM && OF
+	depends on ARCH_SUNXI || COMPILE_TEST
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_GEM_CMA_HELPER
+	help
+	  Choose this option if you have a Allwinner chipset.
+
+config DRM_SUNXI_DE2
+	tristate "Support for Allwinner Video with DE2 interface"
+	depends on DRM_SUNXI
+	help
+	  Choose this option if your Allwinner chipset has the DE2 interface
+	  as the A64, A83T and H3. If M is selected the module will be called
+	  sunxi-de2-drm.
+
+config DRM_SUNXI_DE2_HDMI
+	tristate "Support for DE2 HDMI"
+	depends on DRM_SUNXI_DE2
+	select SND_SOC_SUNXI_HDMI if SND_SOC
+	help
+	  Choose this option if you use want HDMI on DE2.
+	  If M is selected the module will be called sunxi-de2-hdmi.

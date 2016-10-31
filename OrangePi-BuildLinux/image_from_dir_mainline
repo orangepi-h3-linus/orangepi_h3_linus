@@ -19,13 +19,13 @@ cd $_DIR
 # ===================================================
 if [ "${1}" = "" ]; then
     echo "Source directory not specified."
-    echo "USAGE: image_from_dir <directory> <img_name | /dev/sdX> [noformat] [opi-2|opi-PC|opi-plus|opi-one|opi-lite|opi-pcplus|opi-plus2e]"
+    echo "USAGE: image_from_dir <directory> <img_name | /dev/sdX> [noformat] [opi]"
     exit 0
 fi
 
 if [ "${2}" = "" ]; then
     echo "Destination not specified."
-    echo "USAGE: image_from_dir <directory> <img_name | /dev/sdX> [noformat] [opi-2|opi-PC|opi-plus|opi-one|opi-lite|opi-pcplus|opi-plus2e]"
+    echo "USAGE: image_from_dir <directory> <img_name | /dev/sdX> [noformat] [opi]"
     exit 0
 fi
 
@@ -33,7 +33,7 @@ idir=$1
 
 if [ ! -d $idir ]; then
     echo "Source directory not found."
-    echo "USAGE: image_from_dir <directory> <img_name | /dev/sdX> [noformat] [opi-2|opi-PC|opi-plus|opi-one|opi-lite|opi-pcplus|opi-plus2e]"
+    echo "USAGE: image_from_dir <directory> <img_name | /dev/sdX> [noformat] [opi]"
     exit 0
 fi
 # ===================================================

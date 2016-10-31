@@ -1,4 +1,0 @@
-libapi-y += fd/
-libapi-y += fs/
-libapi-y += cpu.o
-libapi-y += debug.o

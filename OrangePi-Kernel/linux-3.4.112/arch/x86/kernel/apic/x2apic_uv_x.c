@@ -56,7 +56,7 @@ int uv_min_hub_revision_id;
 EXPORT_SYMBOL_GPL(uv_min_hub_revision_id);
 unsigned int uv_apicid_hibits;
 EXPORT_SYMBOL_GPL(uv_apicid_hibits);
-static DEFINE_SPINLOCK(uv_nmi_lock);
+static DEFINE_RAW_SPINLOCK(uv_nmi_lock);
 
 static struct apic apic_x2apic_uv_x;
 
@@ -695,13 +695,13 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 	real_uv_nmi = (uv_read_local_mmr(UVH_NMI_MMR) & UV_NMI_PENDING_MASK);
 
 	if (unlikely(real_uv_nmi)) {
-		spin_lock(&uv_blade_info[bid].nmi_lock);
+		raw_spin_lock(&uv_blade_info[bid].nmi_lock);
 		real_uv_nmi = (uv_read_local_mmr(UVH_NMI_MMR) & UV_NMI_PENDING_MASK);
 		if (real_uv_nmi) {
 			uv_blade_info[bid].nmi_count++;
 			uv_write_local_mmr(UVH_NMI_MMR_CLEAR, UV_NMI_PENDING_MASK);
 		}
-		spin_unlock(&uv_blade_info[bid].nmi_lock);
+		raw_spin_unlock(&uv_blade_info[bid].nmi_lock);
 	}
 
 	if (likely(__get_cpu_var(cpu_last_nmi_count) == uv_blade_info[bid].nmi_count))
@@ -713,10 +713,10 @@ int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 	 * Use a lock so only one cpu prints at a time.
 	 * This prevents intermixed output.
 	 */
-	spin_lock(&uv_nmi_lock);
+	raw_spin_lock(&uv_nmi_lock);
 	pr_info("UV NMI stack dump cpu %u:\n", smp_processor_id());
 	dump_stack();
-	spin_unlock(&uv_nmi_lock);
+	raw_spin_unlock(&uv_nmi_lock);
 
 	return NMI_HANDLED;
 }
@@ -811,7 +811,7 @@ void __init uv_system_init(void)
 			uv_blade_info[blade].pnode = pnode;
 			uv_blade_info[blade].nr_possible_cpus = 0;
 			uv_blade_info[blade].nr_online_cpus = 0;
-			spin_lock_init(&uv_blade_info[blade].nmi_lock);
+			raw_spin_lock_init(&uv_blade_info[blade].nmi_lock);
 			max_pnode = max(pnode, max_pnode);
 			blade++;
 		}

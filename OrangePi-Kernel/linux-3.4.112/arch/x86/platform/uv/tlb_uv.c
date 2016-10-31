@@ -39,7 +39,7 @@ static int timeout_base_ns[] = {
 static int timeout_us;
 static int nobau;
 static int baudisabled;
-static spinlock_t disable_lock;
+static raw_spinlock_t disable_lock;
 static cycles_t congested_cycles;
 
 /* tunables: */
@@ -545,7 +545,7 @@ int handle_uv2_busy(struct bau_control *bcp)
 	cycles_t ttm;
 
 	stat->s_uv2_wars++;
-	spin_lock(&hmaster->uvhub_lock);
+	raw_spin_lock(&hmaster->uvhub_lock);
 	/* try for the original first */
 	if (busy_one != normal) {
 		if (!normal_busy(bcp))
@@ -595,12 +595,12 @@ int handle_uv2_busy(struct bau_control *bcp)
 		 * free up.
 		 */
 		stat->s_uv2_war_waits++;
-		spin_unlock(&hmaster->uvhub_lock);
+		raw_spin_unlock(&hmaster->uvhub_lock);
 		ttm = get_cycles();
 		do {
 			cpu_relax();
 		} while (normal_busy(bcp));
-		spin_lock(&hmaster->uvhub_lock);
+		raw_spin_lock(&hmaster->uvhub_lock);
 		/* switch to the original descriptor */
 		bcp->using_desc = normal;
 		bau_desc_old = bcp->descriptor_base;
@@ -610,7 +610,7 @@ int handle_uv2_busy(struct bau_control *bcp)
 		bau_desc_new += (ITEMS_PER_DESC * normal);
 		*bau_desc_new = *bau_desc_old; /* copy the entire descriptor */
 	}
-	spin_unlock(&hmaster->uvhub_lock);
+	raw_spin_unlock(&hmaster->uvhub_lock);
 	return FLUSH_RETRY_BUSYBUG;
 }
 
@@ -724,9 +724,9 @@ static void destination_plugged(struct bau_desc *bau_desc,
 
 		quiesce_local_uvhub(hmaster);
 
-		spin_lock(&hmaster->queue_lock);
+		raw_spin_lock(&hmaster->queue_lock);
 		reset_with_ipi(&bau_desc->distribution, bcp);
-		spin_unlock(&hmaster->queue_lock);
+		raw_spin_unlock(&hmaster->queue_lock);
 
 		end_uvhub_quiesce(hmaster);
 
@@ -746,9 +746,9 @@ static void destination_timeout(struct bau_desc *bau_desc,
 
 		quiesce_local_uvhub(hmaster);
 
-		spin_lock(&hmaster->queue_lock);
+		raw_spin_lock(&hmaster->queue_lock);
 		reset_with_ipi(&bau_desc->distribution, bcp);
-		spin_unlock(&hmaster->queue_lock);
+		raw_spin_unlock(&hmaster->queue_lock);
 
 		end_uvhub_quiesce(hmaster);
 
@@ -765,7 +765,7 @@ static void disable_for_congestion(struct bau_control *bcp,
 					struct ptc_stats *stat)
 {
 	/* let only one cpu do this disabling */
-	spin_lock(&disable_lock);
+	raw_spin_lock(&disable_lock);
 
 	if (!baudisabled && bcp->period_requests &&
 	    ((bcp->period_time / bcp->period_requests) > congested_cycles)) {
@@ -784,7 +784,7 @@ static void disable_for_congestion(struct bau_control *bcp,
 		}
 	}
 
-	spin_unlock(&disable_lock);
+	raw_spin_unlock(&disable_lock);
 }
 
 static void count_max_concurr(int stat, struct bau_control *bcp,
@@ -833,7 +833,7 @@ static void record_send_stats(cycles_t time1, cycles_t time2,
  */
 static void uv1_throttle(struct bau_control *hmaster, struct ptc_stats *stat)
 {
-	spinlock_t *lock = &hmaster->uvhub_lock;
+	raw_spinlock_t *lock = &hmaster->uvhub_lock;
 	atomic_t *v;
 
 	v = &hmaster->active_descriptor_count;
@@ -1850,8 +1850,8 @@ static void __init init_per_cpu_tunables(void)
 		bcp->cong_reps			= congested_reps;
 		bcp->cong_period		= congested_period;
 		bcp->clocks_per_100_usec =	usec_2_cycles(100);
-		spin_lock_init(&bcp->queue_lock);
-		spin_lock_init(&bcp->uvhub_lock);
+		raw_spin_lock_init(&bcp->queue_lock);
+		raw_spin_lock_init(&bcp->uvhub_lock);
 	}
 }
 
@@ -2078,7 +2078,7 @@ static int __init uv_bau_init(void)
 	}
 
 	nuvhubs = uv_num_possible_blades();
-	spin_lock_init(&disable_lock);
+	raw_spin_lock_init(&disable_lock);
 	congested_cycles = usec_2_cycles(congested_respns_us);
 
 	uv_base_pnode = 0x7fffffff;
