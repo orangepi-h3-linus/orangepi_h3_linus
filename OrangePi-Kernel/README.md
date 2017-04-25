@@ -4,9 +4,9 @@ Linux Kernel for OrangePI H3 boards
 About
 -----
 
-The repository contains Linux kernel sources (3.4.112 and 4.9) adapted for OrangePI H3 boards, gcc toolchain, adapted rootfs and building scripts.
+The repository contains Linux kernel sources (3.4.113 and 4.9) adapted for OrangePI H3 boards, gcc toolchain, adapted rootfs and building scripts.
 
-Building kernel 3.4.112
+Building kernel 3.4.113
 --------
 
 Kernel config files and the files specific to OPI board are placed in **build** directory.
@@ -32,7 +32,7 @@ To **configure kernel** run:<br />
 `./config_linux_kernel.sh`
 
 ---------------------------------------------------------------------------------------
-Building u-boot-2016.7 and kernel 4.9
+Building u-boot-2017.03 and kernel 4.9
 ------------------------------------
 
 The included build script *build_mainline_uboot.sh and build_mainline_kernel.sh* can be used to build u-boot and kernel.
