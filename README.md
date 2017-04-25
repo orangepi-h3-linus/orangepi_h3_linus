@@ -63,9 +63,9 @@ sudo dd bs=4M if=orangepi.img of=/dev/sd*      #安装系统至SD卡
 - **how to install desktop and copy os to emmc**
 
 ``` shell
-fs_resize                                    #First, after BOOTING,to resize linux partition to fill sd card
+fs_resize                                         #First, after BOOTING,to resize linux partition to fill sd card
 reboot
-install_lxde_desktop　　　　　　　　　　　　　　　＃install desktop run,please wait
-install_to_emmc　　　　　　　　　　　　　　　　　　＃install os to emmc
+install_lxde_desktop　　　　　　　　　　　　　　　#install desktop run,please wait
+install_to_emmc　　　　　　　　　　　　　　　　　 #install os to emmc
 ```
 
