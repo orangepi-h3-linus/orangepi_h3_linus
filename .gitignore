@@ -28,6 +28,7 @@
 *.bz2
 *.lzma
 *.xz
+*.tar.xz
 *.lz4
 *.lzo
 *.patch
@@ -50,7 +51,7 @@ Module.symvers
 /vmlinuz
 /System.map
 /Module.markers
-
+/Module.symvers
 #
 # Debian directory (make deb-pkg)
 #
@@ -118,8 +119,6 @@ all.config
 uImage*
 zImage*
 Image
-OrangePi-BuildLinux/boot-trusty/
-OrangePi-BuildLinux/linux-trusty/
 *.img
 *.img1
 *.img2

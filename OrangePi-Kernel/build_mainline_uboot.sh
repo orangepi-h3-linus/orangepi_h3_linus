@@ -5,13 +5,13 @@
 basepath=$(cd `dirname $0`; pwd)
 
 if [ "${1}" = "" ]; then
-	echo "USAGE: sudo ./build_mainline_uboot.sh [2|pc|plus|lite|pc-plus|one|plus2e]"
+	echo "USAGE: sudo ./build_mainline_uboot.sh [2|pc|plus|lite|pc-plus|one|plus2e|zero]"
 	exit -1
 fi
 
 echo "check uboot source ..."
 echo " "
-cd $basepath/u-boot-2016.7/configs
+cd $basepath/u-boot-2017.03/configs
  
 config="orangepi_${1}_defconfig"
 dts="sun8i-h3-orangepi-${1}.dtb"
@@ -38,8 +38,8 @@ fi
 	echo " "
 	echo $PWD
 	echo " "
-	cp ../../u-boot-2016.7/u-boot-sunxi-with-spl.bin ./ -rf  
-	echo "****************************************Compile uboot OK***********************************"
+	cp ../../u-boot-2017.03/u-boot-sunxi-with-spl.bin ./ -rf  
+	echo "**********Compile uboot OK**************"
 
 
 sed -i '/sun8i-h3/d' orangepi.cmd
@@ -53,7 +53,6 @@ cp -rf u-boot-sunxi-with-spl.bin ../../../OrangePi-BuildLinux/orange
 cp -rf boot.scr orangepi.cmd ../../../
 cd ../../../
 mv  boot.scr orangepi.cmd ./OrangePi-BuildLinux/orange
-echo $PWD
 
 
 

@@ -2,7 +2,7 @@
 
 export PATH="$PWD/brandy/gcc-linaro/bin":"$PATH"
 
-cd linux-3.4.112
+cd linux-3.4.113
 
 cp .config .config.bak
 cp ../build/sun8iw7p1smp_lobo_defconfig ../build/sun8iw7p1smp_lobo_defconfig.old

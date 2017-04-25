@@ -38,7 +38,7 @@ gzip rootfs-lobo.img
 cd ..
 #=========================================================
 
-cd linux-3.4.112
+cd linux-3.4.113
 LINKERNEL_DIR=`pwd`
 
 # build rootfs
@@ -114,7 +114,7 @@ make_kernel() {
         [ ! -d ../build/lib ] && mkdir ../build/lib
         rm -rf ../build/lib/*
         cp -R output/lib/* ../build/lib
-        
+		cp ../build/uImage* ../../OrangePi-BuildLinux/orange/ 
     else
         cd ..
         ./build_mali_driver.sh
@@ -123,9 +123,16 @@ make_kernel() {
         [ ! -d ../build/lib ] && mkdir ../build/lib
         rm -rf ../build/lib/*
         cp -R output/lib/* ../build/lib
+		cp ../build/uImage* ../../OrangePi-BuildLinux/orange/ 
     fi
 
-	rm -rf ../../OrangePi-BuildLinux/orange/lib/* 
+	rm -rf ../../OrangePi-BuildLinux/orange/lib/*
+	sudo mkdir -p $LINKERNEL_DIR/../build/lib/modules/3.4.113+/kernel/drivers/gpu/mali  
+	sudo mkdir -p $LINKERNEL_DIR/../build/lib/modules/3.4.113+/kernel/drivers/gpu/ump
+	sudo cp $LINKERNEL_DIR/../build/lib/modules/3.4.113/mali_drm.ko $LINKERNEL_DIR/../build/lib/modules/3.4.113+/kernel/drivers/gpu/mali/
+	sudo cp $LINKERNEL_DIR/../build/lib/modules/3.4.113/mali.ko $LINKERNEL_DIR/../build/lib/modules/3.4.113+/kernel/drivers/gpu/mali/
+	sudo cp $LINKERNEL_DIR/../build/lib/modules/3.4.113/ump.ko $LINKERNEL_DIR/../build/lib/modules/3.4.113+/kernel/drivers/gpu/ump/
+	sudo rm -rf $LINKERNEL_DIR/../build/lib/modules/3.4.113/
 	cp -rf ../build/lib/* ../../OrangePi-BuildLinux/orange/lib/
 }
 #==================================================================================
@@ -141,7 +148,6 @@ if [ "${1}" = "clean" ]; then
     rm -f ../build/uImage* > /dev/null 2>&1
     rm -f ../kbuild* > /dev/null 2>&1
     rm -f ../malibuild* > /dev/null 2>&1
-    rm if ../linux-3.4/modules/malibuild* > /dev/null 2>&1
     rmdir ../build/lib > /dev/null 2>&1
     rm ../build/rootfs-lobo.img.gz > /dev/null 2>&1
     rm -rf output/* > /dev/null 2>&1

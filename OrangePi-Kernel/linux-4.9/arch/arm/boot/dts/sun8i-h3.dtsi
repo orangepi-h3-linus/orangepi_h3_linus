@@ -294,7 +294,7 @@
 			phys = <&usbphy 0>;
 			phy-names = "usb";
 			extcon = <&usbphy 0>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		ehci0: usb@01c1a000 {
