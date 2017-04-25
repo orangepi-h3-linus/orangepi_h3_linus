@@ -66,7 +66,8 @@ cp ../build/rootfs-lobo.img.gz output/rootfs.cpio.gz
     if [ "${1}" = "opi" ]; then
     	echo "Building kernel for OPI ..."
     	echo "  Configuring ..."
-        cp arch/arm/configs/sun8iw7p1_mainline_defconfig .config 
+        cp arch/arm/configs/sun8iw7p1_mainline_defconfig .config
+        make menuconfig
     	make -j6 ARCH=arm CROSS_COMPILE=${cross_comp}- > ../kbuild_OPI.log 2>&1
     	if [ $? -ne 0 ]; then
         	echo "  Error: KERNEL NOT BUILT."
@@ -114,7 +115,7 @@ cp ../build/rootfs-lobo.img.gz output/rootfs.cpio.gz
         cp arch/arm/boot/dts/sun8i-h3-orangepi-pc.dtb output/
 		cd ..
     	cd $LINKERNEL_DIR
-    	cp arch/arm/boot/uImage ../build/lib/uImage
+    	cp output/uImage ../build/lib/uImage
     	[ ! -d ../build/lib ] && mkdir ../build/lib
     	rm -rf ../build/lib/*
     	cp -R output/lib/* ../build/lib

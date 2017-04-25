@@ -1,78 +1,71 @@
-#The OrangePi-Kernel contains Linux kernel sources (3.4.112 and 4.9) adapted for OrangePI H3 boards, gcc toolchain
-#The script "build_linux_kernel.sh" can be used to build the kernel
+# Build H3 image For OrangePi
 
-The kernel 4.9 only support USB WLAN MMC UART ETHERNET HDMI OTG, other function temporarily does not support 
+The OrangePi-Kernel contains Linux kernel sources (3.4.113 and 4.9) adapted for OrangePi H3 boards
 
+- **make 3.4.113 uImage**
+- **make 4.9 uImage and uboot**
+- **make rootfs**
+- **make Image**
+- **how to install desktop and copy os to emmc**
+-------------------------------------
 
-##Example1(how to make uImage 3.4.112)：
-#$ cd OrangePI-Kernel
-##cleans the kernel tree before build
-#$ sudo ./build_linux_kernel.sh clean clean   
-##builds the uImage for OPI-PLUS(only two uImage,just plus,pi2),plus,plus2,plus2E use same uIamge,others use pi2 uImage                    
-#$ sudo ./build_linux_kernel.sh plus                              
-#$ cd ../OrangePi-BuildLinux  
-##build file system
-#$ sudo ./create_image    
-##build plus image                                        
-#$ sudo ./image_from_dir ./linux-trusty orangepi ext4 opi-plus    
-#$ sudo dd bs=4M if=orangepi.img of=/dev/sd*                  
-##Read and edit "params.sh" to adjust the parameters to your needs
-##if you can not insmod modules,delete directory(/lib/modules) ,then copy /home/orangepi/3.4.112 to /lib/modules/,reboot
+- **make 3.4.113 uImage**
 
+``` shell
+cd OrangePI-Kernel                             #首先进入OrangePI-Kernel目录
+sudo ./build_linux_kernel.sh clean clean       #clean kernel
+sudo ./build_linux_kernel.sh plus              #plus为例，编译kernel，在build/下面生成uImage_OPI-PLUS
 
+#如编译plus,plus2e,plus2对应是build/uImage_OPI-PLUS，其他的型号对应build/uImage_OPI-2,编译出来的modules和firmware在build/lib下面
+```
+- **make 4.9 uImage and uboot**
 
-##Example2(how to make uImage 4.9 and uboot)：
-#$ cd OrangePI-Kernel
-##builds the u-boot-sunxi-with-spl.bin and boot.scr for OPI boards
-#$ sudo ./build_mainline_uboot.sh [2 | pc | plus | lite | pc-plus | one | plus2e]    
-##cleans the uboot tree before build                   
-#$ sudo ./build_linux_kernel_mainline.sh clean                              
-##builds the uImage for OPI                   
-#$ sudo ./build_linux_kernel_mainline.sh opi
-#$ cd ../OrangePi-BuildLinux  
-##build file system
-#$ sudo ./create_image    
-##build plus image                                        
-#$ sudo ./image_from_dir_mainline ./linux-trusty orangepi ext4 opi
-#$ sudo dd bs=4M if=orangepi.img of=/dev/sd*                  
-##Read and edit "params.sh" to adjust the parameters to your needs
+``` shell
+cd OrangePI-Kernel
+sudo ./build_mainline_uboot.sh [2 | pc | plus | lite | pc-plus | one | plus2e]
+sudo ./build_linux_kernel_mainline.sh clean
+sudo ./build_linux_kernel_mainline.sh opi
 
+#mainline uboot的烧录方法
+#sudo dd if=/dev/zero of=/dev/sdc bs=1k seek=8 count=1015
+#sudo dd if=u-boot-sunxi-with-spl.bin of=/dev/sdc bs=1k seek=8
+#主线内核启动方法：boot分区除了script.bin，uImage,还要有boot.scr。在编译uboot时生成，在build/uboot下面
+```
+- **make rootfs **
 
+``` shell
+cd OrangePi-BuildLinux
+vim params.sh                                  #按照需求选择发行版等
 
+example(例):
+#distro="precise"
+distro="xenial"
+#distro="utopic"
+#distro="vivid"
+#distro="wily"
+repo="http://ports.ubuntu.com/ubuntu-ports"    #需要请打开注释，不需要则注释
 
-##Example3(configure desktop)
-##After BOOTING,to resize linux partition to fill sd card
-#$ fs_resize
-#$ reboot
-##to install desktop run,please wait at least one hours
-#$ install_lxde_desktop  
-#$ reboot
-#*****************************************************          
-##Install software what your needs(just like follows)
+sudo ./create_image                            #在当前目录生成boot分区和rootfs分区
+```
+- **make Image**
 
+``` shell
+＃example(linux-3.4.113)
+sudo ./image_from_dir ./linux-xenial orangepi ext4 opi-plus
+#linux-xenial是create_image生成的文件系统分区 orangepi是镜像的名字 ext4是rootfs分区的格式 opi-plus选择板子的型号
 
-##Install commom software 
-#$ sudo install_common_software
-##Language from english to chinese
-#$ sudo install_hanhua
-##install mali，use glmark2-es2 test
-#$ sudo install_maliGPU
-##install pepperflash
-#$ sudo install_pepperflash
-##install samba
-#$ sudo install_samba
-##install x2go
-#$ sudo install_x2goserver
-##install vnc
-#$ sudo install_vnc
-##install bypy(you can upload to baiduyun)
-#$ sudo install_bypy
-##install btsync
-#$ sudo install_btsync
-##install ibus chinese input method
-#$ sudo install_ibus_shuru
-##install the camera driver, can be used to provide the official website of the camera
-#$ sudo install_camera_ko
+＃example(linux-4.9)
+sudo ./image_from_dir_mainline ./linux-xenial orangepi ext4 opi
 
+sudo dd bs=4M if=orangepi.img of=/dev/sd*      #安装系统至SD卡
 
+```
+- **how to install desktop and copy os to emmc**
+
+``` shell
+fs_resize                                         #First, after BOOTING,to resize linux partition to fill sd card
+reboot
+install_lxde_desktop　　　　　　　　　　　　　　　#install desktop run,please wait
+install_to_emmc　　　　　　　　　　　　　　　　　 #install os to emmc
+```
 

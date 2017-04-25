@@ -90,7 +90,7 @@ linuxsize=800
 
 # === Ubuntu ===
 #distro="precise"
-distro="trusty"
+distro="xenial"
 #distro="utopic"
 #distro="vivid"
 #distro="wily"

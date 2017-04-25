@@ -17,6 +17,7 @@ if [ ! "${image_name}" = "" ]; then
         # === ON BLOCK DEVICE ======================================
         echo "Creating filesystem on block device ${image_name} ..."
         sdcard="$image_name"
+
         _directsd="yes"
         _ddparm=""
         # ==========================================================
@@ -50,7 +51,6 @@ else
 fi
 
 if [ ! "${sdcard}" = "" ]; then
-
     if [ ! "${_directsd}" = "yes" ] ; then
     echo "Using disk image \"$sdcard\""
     fi
