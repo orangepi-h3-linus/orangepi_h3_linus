@@ -113,11 +113,10 @@ cp ../build/rootfs-lobo.img.gz output/rootfs.cpio.gz
         cp arch/arm/boot/dts/sun8i-h3-orangepi-pc-plus.dtb output/
         cp arch/arm/boot/dts/sun8i-h3-orangepi-plus2e.dtb output/
         cp arch/arm/boot/dts/sun8i-h3-orangepi-pc.dtb output/
-		cd ..
-    	cd $LINKERNEL_DIR
-    	cp output/uImage ../build/lib/uImage
+
     	[ ! -d ../build/lib ] && mkdir ../build/lib
     	rm -rf ../build/lib/*
+	cp output/uImage ../build/lib/uImage
     	cp -R output/lib/* ../build/lib
         cp output/sun8i-h3-orangepi-one.dtb ../build/lib
         cp output/sun8i-h3-orangepi-lite.dtb ../build/lib
@@ -128,7 +127,8 @@ cp ../build/rootfs-lobo.img.gz output/rootfs.cpio.gz
         cp output/sun8i-h3-orangepi-pc.dtb ../build/lib
         
 
-		rm -rf ../../OrangePi-BuildLinux/orange/lib/* 
+		rm -rf ../../OrangePi-BuildLinux/orange/lib/*
+		cp ../build/lib/uImage ../../OrangePi-BuildLinux/orange/
 		cp -rf ../build/lib/* ../../OrangePi-BuildLinux/orange/lib/
 	fi
 #==================================================================================
